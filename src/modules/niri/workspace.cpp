@@ -67,6 +67,7 @@ void Workspace::update(const Json::Value& data, const std::vector<Json::Value>& 
   setClass("active", data["is_active"].asBool());
   setClass("urgent", data["is_urgent"].asBool());
   setClass("empty", data["active_window_id"].isNull());
+  setClass("unnamed", !data["name"]);
   setClass("current_output",
            data["output"] && data["output"].asString() == manager_.bar().output->name);
 

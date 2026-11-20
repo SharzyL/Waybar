@@ -369,23 +369,32 @@ bool Workspaces::handleScroll(GdkEventScroll* e) {
 }
 
 void Workspaces::sortWorkspaces(std::vector<const Json::Value*>& workspaces) const {
-  auto get_name = [](const Json::Value& ws) -> std::string {
-    if (ws["name"]) return ws["name"].asString();
-    return std::to_string(ws["idx"].asUInt());
-  };
-
   auto is_numeric = [](const std::string& value) {
     return !value.empty() &&
            std::all_of(value.begin(), value.end(), [](unsigned char c) { return std::isdigit(c); });
   };
 
+  // Unnamed workspaces are sorted last, so only named ones decide numeric sorting.
   const bool names_are_numeric =
-      std::all_of(workspaces.begin(), workspaces.end(),
-                  [&](const auto* ws) { return is_numeric(get_name(*ws)); });
+      std::all_of(workspaces.begin(), workspaces.end(), [&](const auto* ws) {
+        return (*ws)["name"].isNull() || is_numeric((*ws)["name"].asString());
+      });
 
   auto compare_numeric_strings = [](const std::string& a, const std::string& b) {
     if (a.size() != b.size()) return a.size() < b.size();
     return a < b;
+  };
+
+  auto compare_by_coordinates = [](const Json::Value& a, const Json::Value& b) {
+    const auto& a_output = a["output"].asString();
+    const auto& b_output = b["output"].asString();
+    if (a_output == b_output) {
+      const auto a_idx = a["idx"].asUInt();
+      const auto b_idx = b["idx"].asUInt();
+      if (a_idx == b_idx) return a["id"].asUInt64() < b["id"].asUInt64();
+      return a_idx < b_idx;
+    }
+    return a_output < b_output;
   };
 
   std::sort(workspaces.begin(), workspaces.end(), [&](const auto* ap, const auto* bp) {
@@ -396,23 +405,20 @@ void Workspaces::sortWorkspaces(std::vector<const Json::Value*>& workspaces) con
     }
 
     if (sort_by_name_) {
-      const auto a_name = get_name(a);
-      const auto b_name = get_name(b);
+      const bool a_named = !a["name"].isNull();
+      const bool b_named = !b["name"].isNull();
+      if (a_named != b_named) return a_named;
+      if (!a_named) return compare_by_coordinates(a, b);
+
+      const auto a_name = a["name"].asString();
+      const auto b_name = b["name"].asString();
       if (a_name == b_name) return a["id"].asUInt64() < b["id"].asUInt64();
       if (names_are_numeric) return compare_numeric_strings(a_name, b_name);
       return a_name < b_name;
     }
 
     if (sort_by_coordinates_) {
-      const auto& a_output = a["output"].asString();
-      const auto& b_output = b["output"].asString();
-      if (a_output == b_output) {
-        const auto a_idx = a["idx"].asUInt();
-        const auto b_idx = b["idx"].asUInt();
-        if (a_idx == b_idx) return a["id"].asUInt64() < b["id"].asUInt64();
-        return a_idx < b_idx;
-      }
-      return a_output < b_output;
+      return compare_by_coordinates(a, b);
     }
 
     // Default to sorting by workspace index on each output.

@@ -20,7 +20,7 @@ Addressed by *niri/workspaces*
 *sort-by-name*: ++
 	typeof: bool ++
 	default: false ++
-	Sort workspaces by name (numeric sort when all names are numbers). Unnamed workspaces fall back to their index on the output.
+	Sort workspaces by name (numeric sort when all names are numbers). Unnamed workspaces are placed after named ones, ordered by output and index.
 
 *sort-by-coordinates*: ++
 	typeof: bool ++
